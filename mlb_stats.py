@@ -1,6 +1,7 @@
 import argparse
 import csv
 import datetime
+import logging
 import os
 import statsapi
 import sys
@@ -35,7 +36,7 @@ def grab_player_stats(players_id: list, players_list: list) -> list:
     return player_stats, homerun_stats
 
 
-def grab_players_ids(print_bool: bool, players_list: list) -> list:
+def grab_players_ids(players_list: list) -> list:
     players_id = []
     for player in players_list:
         players = statsapi.lookup_player(player)
@@ -80,7 +81,7 @@ def main():
                         elif not name == '':
                             players_list.append(name)
 
-    players_id = grab_players_ids(args.print_bool, players_list)
+    players_id = grab_players_ids(players_list)
     player_stats, homerun_stats = grab_player_stats(players_id, players_list)
 
     if args.write_csv_bool:
