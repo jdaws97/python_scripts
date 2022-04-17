@@ -22,62 +22,28 @@ def parse_boolean(value):
         return False
 
 
-def search_players(players_list: list, mlb_stats: list) -> list:
+def grab_player_stats(players_id: list, players_list: list) -> list:
+    player_stats = []
+    homerun_stats = []
+    for each in players_list:
+        for player in players_id:
+            if each in player.keys():
+                stats = statsapi.player_stat_data(player[each]['id'], group="[hitting]", type="season")
+                player_stats.append({each: stats})
+                for stat in stats['stats']:
+                    homerun_stats.append({each: {"homeRuns": stat['stats']['homeRuns']}})
+    return player_stats, homerun_stats
 
-    my_team = []
-    points = int()
-    for player in mlb_stats:
-        for my_player in players_list:
-            if my_player.__eq__(player['player_name']):
-                my_team.append(player)
-                points += player['home_runs']
 
-    return points, my_team
+def grab_players_ids(print_bool: bool, players_list: list) -> list:
+    players_id = []
+    for player in players_list:
+        players = statsapi.lookup_player(player)
+        for data in players:
+            player_id = {data['fullName']: {"id": data['id']}}
+            players_id.append(player_id)
 
-
-def grab_mlb_stats(print_bool: bool) -> list:
-    rookie_hr = statsapi.league_leaders('homeRuns', season=2022, playerPool = None, limit=1000)
-    rookie_hr_leaders = rookie_hr.split('\n')
-    hr_leaders = []
-    state = True
-    number_of_players = int()
-
-    for item in rookie_hr_leaders:
-        if item == '' or state:
-            state = False
-            continue
-
-        name = item.split(" ")[3]
-        last = item.split(" ")[4]
-
-        if name == "":
-            name = item.split(" ")[4].strip()
-            last = item.split(" ")[5]
-
-        hr_var = item.replace(" ", "")
-        home_runs = hr_var[-1]
-
-        if hr_var[-2].isnumeric():
-            home_runs = hr_var[-2] + home_runs
-
-        if last == 'A.':
-            also_last = item.split(" ")[5]
-            home_runs = item.split(" ")[19]
-            hr_leaders.append({"player_name": f"{name} {last} {also_last}", "home_runs": int(home_runs) })
-            continue
-
-        hr_leaders.append({"player_name": f"{name} {last}", "home_runs": int(home_runs)})
-
-    hr_leaders_format = sorted(hr_leaders, key = itemgetter('home_runs'), reverse=True)
-
-    for player in hr_leaders_format:
-        if player['player_name']:
-            number_of_players += 1
-        if print_bool:
-            print(f"{player['player_name']}")
-            print(f"Home Run's: {player['home_runs']}\n")
-
-    return hr_leaders_format, number_of_players
+    return players_id
 
 
 def main():
@@ -114,9 +80,8 @@ def main():
                         elif not name == '':
                             players_list.append(name)
 
-    mlb_stats, number_of_players = grab_mlb_stats(args.print_bool)
-
-    points, my_players_list = search_players(players_list, mlb_stats)
+    players_id = grab_players_ids(args.print_bool, players_list)
+    player_stats, homerun_stats = grab_player_stats(players_id, players_list)
 
     if args.write_csv_bool:
         with open(f"mlb_hr_leaders_{date_time}.csv", 'w') as csvfile:
@@ -125,26 +90,12 @@ def main():
 
             csvwriter.writerow(fields)
 
-            for player in mlb_stats:
-                row = [player['player_name'], player['home_runs']]
-                csvwriter.writerow(row)
+            for player in players_list:
+                for each in homerun_stats:
+                    if player in each.keys():
+                        row = [player, each[player]['homeRuns']]
+                        csvwriter.writerow(row)
 
-        if args.players_list:
-            with open(f"homerun_team_{date_time}.csv", 'w') as csvfile:
-                csvwriter = csv.writer(csvfile)
-                fields = ['Name', 'Homeruns', f"My Points: {points}"]
-
-                csvwriter.writerow(fields)
-
-                for player in my_players_list:
-                    row = [player['player_name'], player['home_runs']]
-                    csvwriter.writerow(row)
-
-    if args.players_list:
-        print(f"Points: {points}")
-        print("Your Team:")
-        for each in my_players_list:
-            print(f"\n{each['player_name']} : {each['home_runs']} home run(s)")
 
 if __name__ == '__main__':
     main()
